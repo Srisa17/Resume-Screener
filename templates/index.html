@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HIREX Resume Evaluator</title>
+  <style>
+    :root {
+      --bg-light: #f7f9fc;
+      --text-light: #333;
+      --bg-dark: #121212;
+      --text-dark: #eee;
+      --primary-color: #007BFF;
+      --primary-hover: #0056b3;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg-light);
+      color: var(--text-light);
+      margin: 0;
+      padding: 0;
+    }
+    body.dark {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+    }
+    header {
+      position: relative;
+      text-align: center;
+      padding: 1.5rem;
+      background: var(--primary-color);
+      color: white;
+    }
+    #themeToggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    #modeToggle {
+      display: block;
+      margin: 15px auto;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: #eee;
+      color: #333;
+      border: 1px solid #ccc;
+      width: fit-content;
+    }
+    body.dark #modeToggle {
+      background: #333;
+      color: #eee;
+      border: 1px solid #555;
+    }
+    #drop-area {
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px;
+      text-align: center;
+      cursor: pointer;
+    }
+    #drop-area.highlight {
+      border-color: var(--primary-color);
+    }
+    #fileElem {
+      display: none;
+    }
+    textarea {
+      width: 90%;
+      margin: 20px auto;
+      display: block;
+      padding: 10px;
+    }
+    button {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: var(--primary-hover);
+    }
+    #results {
+      margin: 20px;
+      padding: 20px;
+    }
+    .result-box {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #fafafa;
+    }
+    body.dark .result-box {
+      background: #1e1e1e;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>HIREX Resume Evaluator</h1>
+    <button id="themeToggle">🌙</button>
+  </header>
+
+  <!-- Toggle Button -->
+  <div id="modeToggle">📄 File Mode</div>
+
+  <!-- Drop Area -->
+  <div id="drop-area">
+    <p>Drag & Drop PDF/Word resumes here or click to select</p>
+    <input type="file" id="fileElem" multiple accept=".pdf,.doc,.docx" />
+  </div>
+
+  <!-- Requirements -->
+  <textarea id="criteriaInput" rows="5" placeholder="Paste job requirements here..."></textarea>
+  <button id="analyzeBtn">Analyze Resumes</button>
+
+  <!-- Results -->
+  <div id="results"></div>
+
+  <script>
+    const dropArea = document.getElementById("drop-area");
+    const fileElem = document.getElementById("fileElem");
+    const resultsDiv = document.getElementById("results");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const themeToggle = document.getElementById("themeToggle");
+    const modeToggle = document.getElementById("modeToggle");
+    let files = [];
+    let folderMode = false;
+
+    // Toggle between File and Folder mode
+    modeToggle.addEventListener("click", () => {
+      folderMode = !folderMode;
+      if (folderMode) {
+        fileElem.setAttribute("webkitdirectory", "");
+        fileElem.setAttribute("directory", "");
+        modeToggle.textContent = "📂 Folder Mode";
+      } else {
+        fileElem.removeAttribute("webkitdirectory");
+        fileElem.removeAttribute("directory");
+        modeToggle.textContent = "📄 File Mode";
+      }
+      files = [];
+      fileElem.value = "";
+      updateDropAreaText();
+    });
+
+    // Update drop text
+    function updateDropAreaText() {
+      dropArea.querySelector("p").textContent =
+        files.length === 0
+          ? "Drag & Drop PDF/Word resumes here or click to select"
+          : files.map(f => f.name).join(", ");
+    }
+
+    // Handle file selection
+    fileElem.addEventListener("change", (e) => {
+      files = [...e.target.files];
+      updateDropAreaText();
+    });
+
+    // Drag & Drop
+    dropArea.addEventListener("click", () => fileElem.click());
+    dropArea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropArea.classList.add("highlight");
+    });
+    dropArea.addEventListener("dragleave", () => {
+      dropArea.classList.remove("highlight");
+    });
+    dropArea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropArea.classList.remove("highlight");
+      files = [...e.dataTransfer.files];
+      updateDropAreaText();
+    });
+
+    // Dark Mode toggle
+    themeToggle.addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      themeToggle.textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
+    });
+
+    // Analyze resumes
+    analyzeBtn.addEventListener("click", () => {
+      if (files.length === 0) {
+        alert("Please upload at least one resume.");
+        return;
+      }
+      const criteria = document.getElementById("criteriaInput").value.trim();
+      if (!criteria) {
+        alert("Please enter job requirements.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("requirements", criteria);
+      files.forEach(f => formData.append("files", f));
+
+      resultsDiv.innerHTML = "<p>Analyzing... please wait ⏳</p>";
+
+      fetch("/analyze", { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+          resultsDiv.innerHTML = "";
+          if (data.error) {
+            resultsDiv.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+          } else {
+            data.forEach(r => {
+              const div = document.createElement("div");
+              div.className = "result-box";
+              div.innerHTML = `<strong>${r.file}</strong><br>${r.result}`;
+              resultsDiv.appendChild(div);
+            });
+          }
+        })
+        .catch(err => {
+          resultsDiv.innerHTML = `<p style="color:red;">Request failed: ${err}</p>`;
+        })
+        .finally(() => {
+          files = [];
+          fileElem.value = "";
+          updateDropAreaText();
+        });
+    });
+  </script>
+</body>
+</html>
