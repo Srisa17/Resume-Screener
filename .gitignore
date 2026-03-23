@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+env/
+venv/
+.venv/
+.vscode/
+.idea/
+.env
+
+# Ignore resumes
+*.pdf
+*.docx
+
+# Keep demo files
+!sample_resume_good.pdf
+!sample_resume_reject.pdf
