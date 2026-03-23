@@ -10,7 +10,3 @@ venv/
 # Ignore resumes
 *.pdf
 *.docx
-
-# Keep demo files
-!sample_resume_good.pdf
-!sample_resume_reject.pdf
